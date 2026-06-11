@@ -28,9 +28,9 @@ from freebet_calc import compute_freebet_split, best_split_for_match
 from odds_api import fetch_odds_raw
 
 
-st.set_page_config(page_title="Freebet Converter", page_icon="🎯", layout="centered")
+st.set_page_config(page_title="La Grappille des Super Sans Plomb 95", page_icon="⛽", layout="centered")
 
-st.title("🎯 Freebet Converter")
+st.title("⛽ La Grappille des Super Sans Plomb 95")
 st.caption("Convertis un freebet en gain garanti, quelle que soit l'issue du match.")
 
 with st.sidebar:
@@ -82,7 +82,17 @@ st.caption(
     "freebet réparti sur les 2 autres issues chez le book sélectionné)."
 )
 
-sport_key = st.text_input("Sport key (ex: soccer_france_ligue_one)", value="soccer_france_ligue_one")
+SPORTS = {
+    "Football - Ligue 1 (France)": "soccer_france_ligue_one",
+    "Football - Ligue 2 (France)": "soccer_france_ligue_two",
+    "Football - Premier League (Angleterre)": "soccer_epl",
+    "Football - Liga (Espagne)": "soccer_spain_la_liga",
+    "Football - Serie A (Italie)": "soccer_italy_serie_a",
+    "Football - Bundesliga (Allemagne)": "soccer_germany_bundesliga",
+    "Football - Ligue des Champions": "soccer_uefa_champs_league",
+}
+sport_label = st.selectbox("Compétition", list(SPORTS.keys()))
+sport_key = SPORTS[sport_label]
 
 
 @st.cache_data(ttl=300, show_spinner="Récupération des cotes...")
