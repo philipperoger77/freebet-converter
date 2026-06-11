@@ -98,6 +98,7 @@ SPORTS = {
     "Football - Serie A (Italie)": "soccer_italy_serie_a",
     "Football - Bundesliga (Allemagne)": "soccer_germany_bundesliga",
     "Football - Ligue des Champions": "soccer_uefa_champs_league",
+    "Football - Coupe du Monde FIFA": "soccer_fifa_world_cup",
 }
 sport_label = st.selectbox("Compétition", list(SPORTS.keys()))
 sport_key = SPORTS[sport_label]
