@@ -84,18 +84,28 @@ st.caption(
 
 sport_key = st.text_input("Sport key (ex: soccer_france_ligue_one)", value="soccer_france_ligue_one")
 
+
+@st.cache_data(ttl=300, show_spinner="Récupération des cotes...")
+def cached_fetch_odds(api_key: str, sport: str):
+    return fetch_odds_raw(api_key, sport)
+
+
 if st.button("Récupérer les cotes"):
     if not odds_api_key:
         st.error("Renseigne ta clé API dans la barre latérale.")
     else:
-        with st.spinner("Récupération des cotes..."):
-            try:
-                st.session_state["matches"] = fetch_odds_raw(odds_api_key, sport_key)
-            except Exception as e:
-                st.error(f"Erreur API : {e}")
-                st.session_state["matches"] = []
+        try:
+            st.session_state["matches"], st.session_state["quota"] = cached_fetch_odds(odds_api_key, sport_key)
+        except Exception as e:
+            st.error(f"Erreur API : {e}")
+            st.session_state["matches"] = []
+            st.session_state["quota"] = {}
 
 matches = st.session_state.get("matches", [])
+quota = st.session_state.get("quota", {})
+
+if quota.get("remaining") is not None:
+    st.caption(f"Quota the-odds-api.com : {quota['remaining']} requêtes restantes (résultats mis en cache 5 min).")
 
 if matches:
     all_books = sorted({book for m in matches for book in m["books"]})

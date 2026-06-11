@@ -5,15 +5,18 @@ import requests
 BASE_URL = "https://api.the-odds-api.com/v4"
 
 
-def fetch_odds_raw(api_key: str, sport_key: str, region: str = "eu") -> list[dict]:
+def fetch_odds_raw(api_key: str, sport_key: str, region: str = "eu") -> tuple[list[dict], dict]:
     """Récupère les matchs à venir d'un sport avec, pour chaque bookmaker,
     les cotes h2h (domicile / nul / extérieur).
 
-    Retourne une liste de dicts :
-    {
-        "home_team": str, "away_team": str, "commence_time": str,
-        "books": {book_title: {"home": float, "draw": float, "away": float}},
-    }
+    Retourne (matches, quota) où :
+    - matches est une liste de dicts :
+      {
+          "home_team": str, "away_team": str, "commence_time": str,
+          "books": {book_title: {"home": float, "draw": float, "away": float}},
+      }
+    - quota est un dict {"remaining": int|None, "used": int|None}
+      issu des headers de l'API (the-odds-api.com).
     """
     url = f"{BASE_URL}/sports/{sport_key}/odds"
     params = {
@@ -25,6 +28,11 @@ def fetch_odds_raw(api_key: str, sport_key: str, region: str = "eu") -> list[dic
     resp = requests.get(url, params=params, timeout=15)
     resp.raise_for_status()
     data = resp.json()
+
+    quota = {
+        "remaining": resp.headers.get("x-requests-remaining"),
+        "used": resp.headers.get("x-requests-used"),
+    }
 
     matches = []
     for event in data:
@@ -58,4 +66,4 @@ def fetch_odds_raw(api_key: str, sport_key: str, region: str = "eu") -> list[dic
                 "books": books,
             })
 
-    return matches
+    return matches, quota
