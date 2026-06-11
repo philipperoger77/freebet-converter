@@ -42,19 +42,33 @@ with st.sidebar:
 
 st.subheader("1. Cotes")
 
+if "_pending_fill" in st.session_state:
+    pending = st.session_state.pop("_pending_fill")
+    st.session_state["nom_eq1"] = pending["nom_eq1"]
+    st.session_state["nom_eq2"] = pending["nom_eq2"]
+    st.session_state["cote_eq1"] = pending["cote_eq1"]
+    st.session_state["cote_nul"] = pending["cote_nul"]
+    st.session_state["cote_eq2"] = pending["cote_eq2"]
+
+st.session_state.setdefault("nom_eq1", "Équipe 1")
+st.session_state.setdefault("nom_eq2", "Équipe 2")
+st.session_state.setdefault("cote_eq1", 1.41)
+st.session_state.setdefault("cote_nul", 4.70)
+st.session_state.setdefault("cote_eq2", 9.00)
+
 col_n1, col_n2 = st.columns(2)
 with col_n1:
-    nom_eq1 = st.text_input("Nom équipe 1 (cash)", value="Équipe 1")
+    nom_eq1 = st.text_input("Nom équipe 1 (cash)", key="nom_eq1")
 with col_n2:
-    nom_eq2 = st.text_input("Nom équipe 2 (freebet)", value="Équipe 2")
+    nom_eq2 = st.text_input("Nom équipe 2 (freebet)", key="nom_eq2")
 
 col1, col2, col3 = st.columns(3)
 with col1:
-    cote_eq1 = st.number_input(f"Cote {nom_eq1} (book 1, cash)", min_value=1.01, value=1.41, step=0.01, format="%.2f")
+    cote_eq1 = st.number_input(f"Cote {nom_eq1} (book 1, cash)", min_value=1.01, step=0.01, format="%.2f", key="cote_eq1")
 with col2:
-    cote_nul = st.number_input("Cote nul (book 2, freebet)", min_value=1.01, value=4.70, step=0.01, format="%.2f")
+    cote_nul = st.number_input("Cote nul (book 2, freebet)", min_value=1.01, step=0.01, format="%.2f", key="cote_nul")
 with col3:
-    cote_eq2 = st.number_input(f"Cote {nom_eq2} (book 2, freebet)", min_value=1.01, value=9.00, step=0.01, format="%.2f")
+    cote_eq2 = st.number_input(f"Cote {nom_eq2} (book 2, freebet)", min_value=1.01, step=0.01, format="%.2f", key="cote_eq2")
 
 st.subheader("2. Montant du freebet")
 montant_fb = st.number_input("Montant du freebet (€)", min_value=0.01, value=20.0, step=1.0, format="%.2f")
@@ -146,6 +160,8 @@ if matches:
             continue
 
         names = {"home": m["home_team"], "draw": "Nul", "away": m["away_team"]}
+        fb_1_name = names[best["fb_outcomes"][0]]
+        fb_2_name = names[best["fb_outcomes"][1]]
         rows.append({
             "match": f"{m['home_team']} vs {m['away_team']}",
             "commence_time": m["commence_time"],
@@ -153,14 +169,31 @@ if matches:
             "cash_sur": names[best["cash_outcome"]],
             "cote_cash": best["cote_cash"],
             "mise_cash": best["mise_eq1"],
-            "fb_1": f"{names[best['fb_outcomes'][0]]} (cote {best['cote_fb1']:.2f})",
+            "fb_1": f"{fb_1_name} (cote {best['cote_fb1']:.2f})",
+            "fb_1_name": fb_1_name,
+            "cote_fb1": best["cote_fb1"],
             "fb_1_montant": best["fb_nul"],
-            "fb_2": f"{names[best['fb_outcomes'][1]]} (cote {best['cote_fb2']:.2f})",
+            "fb_2": f"{fb_2_name} (cote {best['cote_fb2']:.2f})",
+            "fb_2_name": fb_2_name,
+            "cote_fb2": best["cote_fb2"],
             "fb_2_montant": best["fb_eq2"],
             "gain_net": best["gain_net"],
         })
 
     rows.sort(key=lambda r: r["taux"], reverse=True)
+
+    if rows:
+        best_row = rows[0]
+        if st.session_state.get("_auto_filled") != (best_row["match"], book2):
+            st.session_state["_pending_fill"] = {
+                "nom_eq1": best_row["cash_sur"],
+                "nom_eq2": best_row["fb_2_name"],
+                "cote_eq1": best_row["cote_cash"],
+                "cote_nul": best_row["cote_fb1"],
+                "cote_eq2": best_row["cote_fb2"],
+            }
+            st.session_state["_auto_filled"] = (best_row["match"], book2)
+            st.rerun()
 
     if not rows:
         st.info(f"Aucune cote disponible chez {book2} pour ces matchs.")
