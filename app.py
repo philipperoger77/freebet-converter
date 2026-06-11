@@ -42,25 +42,31 @@ with st.sidebar:
 
 st.subheader("1. Cotes")
 
+col_n1, col_n2 = st.columns(2)
+with col_n1:
+    nom_eq1 = st.text_input("Nom équipe 1 (cash)", value="Équipe 1")
+with col_n2:
+    nom_eq2 = st.text_input("Nom équipe 2 (freebet)", value="Équipe 2")
+
 col1, col2, col3 = st.columns(3)
 with col1:
-    cote_eq1 = st.number_input("Cote équipe 1 (book 1, cash)", min_value=1.01, value=1.41, step=0.01, format="%.2f")
+    cote_eq1 = st.number_input(f"Cote {nom_eq1} (book 1, cash)", min_value=1.01, value=1.41, step=0.01, format="%.2f")
 with col2:
     cote_nul = st.number_input("Cote nul (book 2, freebet)", min_value=1.01, value=4.70, step=0.01, format="%.2f")
 with col3:
-    cote_eq2 = st.number_input("Cote équipe 2 (book 2, freebet)", min_value=1.01, value=9.00, step=0.01, format="%.2f")
+    cote_eq2 = st.number_input(f"Cote {nom_eq2} (book 2, freebet)", min_value=1.01, value=9.00, step=0.01, format="%.2f")
 
 st.subheader("2. Montant du freebet")
 montant_fb = st.number_input("Montant du freebet (€)", min_value=0.01, value=20.0, step=1.0, format="%.2f")
 
 result = compute_freebet_split(cote_eq1, cote_nul, cote_eq2, montant_fb)
 
-st.subheader("3. Résultat")
+st.subheader(f"3. Résultat — {nom_eq1} vs {nom_eq2}")
 
 c1, c2, c3 = st.columns(3)
-c1.metric("Mise cash sur eq1", f"{result['mise_eq1']:.2f} €")
+c1.metric(f"Mise cash sur {nom_eq1}", f"{result['mise_eq1']:.2f} €")
 c2.metric("Freebet sur nul", f"{result['fb_nul']:.2f} €")
-c3.metric("Freebet sur eq2", f"{result['fb_eq2']:.2f} €")
+c3.metric(f"Freebet sur {nom_eq2}", f"{result['fb_eq2']:.2f} €")
 
 st.metric("Retour garanti (toutes issues)", f"{result['retour']:.2f} €")
 st.metric("Gain net", f"{result['gain_net']:.2f} €")
@@ -72,9 +78,9 @@ else:
     st.warning(f"⚠️ Taux de conversion : {taux:.1%} (sous le seuil de 70%)")
 
 with st.expander("Vérification"):
-    st.write(f"eq1 gagne → {result['mise_eq1']:.2f} × {cote_eq1:.2f} = {result['mise_eq1'] * cote_eq1:.2f} €")
-    st.write(f"nul → {result['fb_nul']:.2f} × {cote_nul:.2f} = {result['fb_nul'] * cote_nul:.2f} €")
-    st.write(f"eq2 gagne → {result['fb_eq2']:.2f} × {cote_eq2:.2f} = {result['fb_eq2'] * cote_eq2:.2f} €")
+    st.write(f"{nom_eq1} gagne → {result['mise_eq1']:.2f} × {cote_eq1:.2f} = {result['mise_eq1'] * cote_eq1:.2f} €")
+    st.write(f"Nul → {result['fb_nul']:.2f} × {cote_nul:.2f} = {result['fb_nul'] * cote_nul:.2f} €")
+    st.write(f"{nom_eq2} gagne → {result['fb_eq2']:.2f} × {cote_eq2:.2f} = {result['fb_eq2'] * cote_eq2:.2f} €")
 
 st.divider()
 st.subheader("4. Scanner de cotes (live)")
