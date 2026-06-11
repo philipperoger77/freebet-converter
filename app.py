@@ -24,8 +24,8 @@ Maths :
 
 import streamlit as st
 
-from freebet_calc import compute_freebet_split
-from odds_api import fetch_best_odds
+from freebet_calc import compute_freebet_split, best_split_for_match
+from odds_api import fetch_odds_raw
 
 
 st.set_page_config(page_title="Freebet Converter", page_icon="🎯", layout="centered")
@@ -76,7 +76,11 @@ with st.expander("Vérification"):
 
 st.divider()
 st.subheader("4. Scanner de cotes (live)")
-st.caption("Récupère les meilleures cotes disponibles via the-odds-api.com pour un sport donné.")
+st.caption(
+    "Récupère les cotes de tous les bookmakers pour un sport, et calcule pour chaque match "
+    "le meilleur taux de conversion possible (mise cash sur la meilleure cote dispo, "
+    "freebet réparti sur les 2 autres issues chez le book sélectionné)."
+)
 
 sport_key = st.text_input("Sport key (ex: soccer_france_ligue_one)", value="soccer_france_ligue_one")
 
@@ -86,14 +90,60 @@ if st.button("Récupérer les cotes"):
     else:
         with st.spinner("Récupération des cotes..."):
             try:
-                matches = fetch_best_odds(odds_api_key, sport_key)
+                st.session_state["matches"] = fetch_odds_raw(odds_api_key, sport_key)
             except Exception as e:
                 st.error(f"Erreur API : {e}")
-                matches = []
+                st.session_state["matches"] = []
 
-        for m in matches:
-            st.markdown(f"**{m['home_team']} vs {m['away_team']}** — {m['commence_time']}")
-            st.write(f"- Meilleure cote {m['home_team']} : {m['best_home_odds']:.2f} ({m['best_home_book']})")
-            st.write(f"- Meilleure cote nul : {m['best_draw_odds']:.2f} ({m['best_draw_book']})")
-            st.write(f"- Meilleure cote {m['away_team']} : {m['best_away_odds']:.2f} ({m['best_away_book']})")
+matches = st.session_state.get("matches", [])
+
+if matches:
+    all_books = sorted({book for m in matches for book in m["books"]})
+    book2 = st.selectbox("Bookmaker du freebet (book 2)", all_books)
+
+    rows = []
+    for m in matches:
+        fb_odds = m["books"].get(book2)
+        if not fb_odds:
+            continue
+
+        best_odds = {
+            outcome: max(book.get(outcome, 0) for book in m["books"].values())
+            for outcome in ("home", "draw", "away")
+        }
+
+        best = best_split_for_match(best_odds, fb_odds, montant_fb)
+        if best is None:
+            continue
+
+        names = {"home": m["home_team"], "draw": "Nul", "away": m["away_team"]}
+        rows.append({
+            "match": f"{m['home_team']} vs {m['away_team']}",
+            "commence_time": m["commence_time"],
+            "taux": best["taux"],
+            "cash_sur": names[best["cash_outcome"]],
+            "cote_cash": best["cote_cash"],
+            "mise_cash": best["mise_eq1"],
+            "fb_1": f"{names[best['fb_outcomes'][0]]} (cote {best['cote_fb1']:.2f})",
+            "fb_1_montant": best["fb_nul"],
+            "fb_2": f"{names[best['fb_outcomes'][1]]} (cote {best['cote_fb2']:.2f})",
+            "fb_2_montant": best["fb_eq2"],
+            "gain_net": best["gain_net"],
+        })
+
+    rows.sort(key=lambda r: r["taux"], reverse=True)
+
+    if not rows:
+        st.info(f"Aucune cote disponible chez {book2} pour ces matchs.")
+    else:
+        for r in rows:
+            taux_pct = r["taux"]
+            icon = "✅" if taux_pct >= 0.70 else "⚠️"
+            st.markdown(f"**{r['match']}** — {r['commence_time']} — {icon} **{taux_pct:.1%}**")
+            st.write(f"- Cash sur **{r['cash_sur']}** (cote {r['cote_cash']:.2f}) : {r['mise_cash']:.2f} €")
+            st.write(f"- Freebet sur **{r['fb_1']}** : {r['fb_1_montant']:.2f} €")
+            st.write(f"- Freebet sur **{r['fb_2']}** : {r['fb_2_montant']:.2f} €")
+            st.write(f"- Gain net garanti : {r['gain_net']:.2f} €")
             st.markdown("---")
+else:
+    st.caption("Clique sur \"Récupérer les cotes\" pour lancer le scan.")
