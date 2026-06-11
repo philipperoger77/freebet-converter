@@ -30,7 +30,7 @@ from odds_api import fetch_odds_raw
 
 st.set_page_config(page_title="La Grappille des Super Sans Plomb 95", page_icon="⛽", layout="centered")
 
-st.image("assets/banniere.png", width=300)
+st.image("assets/banniere_landscape.png", use_container_width=True)
 
 st.title("⛽ La Grappille des Super Sans Plomb 95")
 st.caption("Convertis un freebet en gain garanti, quelle que soit l'issue du match.")
