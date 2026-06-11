@@ -35,7 +35,8 @@ st.caption("Convertis un freebet en gain garanti, quelle que soit l'issue du mat
 
 with st.sidebar:
     st.header("Paramètres")
-    odds_api_key = st.text_input("Clé API the-odds-api.com (optionnel)", type="password")
+    default_key = st.secrets.get("ODDS_API_KEY", "")
+    odds_api_key = st.text_input("Clé API the-odds-api.com (optionnel)", value=default_key, type="password")
 
 st.subheader("1. Cotes")
 
