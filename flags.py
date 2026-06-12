@@ -1,7 +1,8 @@
 """Drapeaux pour les noms d'équipes nationales renvoyées par the-odds-api.
 
 Les emojis drapeau ne s'affichent pas correctement sous Windows (lettres ISO
-au lieu du drapeau), on utilise donc des images via flagcdn.com.
+au lieu du drapeau), et flagcdn.com est inaccessible depuis certains réseaux ;
+on utilise donc les SVG du package flag-icons servis via jsdelivr.
 """
 
 _COUNTRY_CODES = {
@@ -22,11 +23,11 @@ _COUNTRY_CODES = {
 
 
 def flag_img(team_name: str, height: int = 16) -> str:
-    """Retourne une balise <img> (drapeau via flagcdn.com), ou '' si inconnu."""
+    """Retourne une balise <img> (drapeau via jsdelivr/flag-icons), ou '' si inconnu."""
     code = _COUNTRY_CODES.get(team_name)
     if not code:
         return ""
     return (
-        f'<img src="https://flagcdn.com/h{height}/{code}.png" alt="" '
-        f'style="vertical-align:middle;border-radius:2px;margin-right:4px;">'
+        f'<img src="https://cdn.jsdelivr.net/npm/flag-icons@7/flags/4x3/{code}.svg" '
+        f'alt="" height="{height}" style="vertical-align:middle;border-radius:2px;margin-right:4px;">'
     )
