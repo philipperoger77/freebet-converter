@@ -26,6 +26,10 @@ import streamlit as st
 
 from freebet_calc import compute_freebet_split, best_split_for_match
 from odds_api import fetch_odds_raw
+from flags import flag, flag_prefix
+
+WINAMAX_LOGO = "🟥⬛"
+UNIBET_LOGO = "🟢⚫"
 
 
 st.set_page_config(page_title="La Grappille des Super Sans Plomb 95", page_icon="⛽", layout="centered")
@@ -58,24 +62,26 @@ st.session_state.setdefault("cote_eq2", 9.00)
 
 col_n1, col_n2 = st.columns(2)
 with col_n1:
-    nom_eq1 = st.text_input("Nom équipe 1 (cash)", key="nom_eq1")
+    flag1 = flag(st.session_state['nom_eq1'])
+    nom_eq1 = st.text_input(f"Nom équipe 1 (cash) {flag1}".rstrip(), key="nom_eq1")
 with col_n2:
-    nom_eq2 = st.text_input("Nom équipe 2 (freebet)", key="nom_eq2")
+    flag2 = flag(st.session_state['nom_eq2'])
+    nom_eq2 = st.text_input(f"Nom équipe 2 (freebet) {flag2}".rstrip(), key="nom_eq2")
 
 col1, col2, col3 = st.columns(3)
 with col1:
-    cote_eq1 = st.number_input(f"Cote {nom_eq1} (book 1, cash)", min_value=1.01, step=0.01, format="%.2f", key="cote_eq1")
+    cote_eq1 = st.number_input(f"Cote {nom_eq1} — {WINAMAX_LOGO} Winamax (cash)", min_value=1.01, step=0.01, format="%.2f", key="cote_eq1")
 with col2:
-    cote_nul = st.number_input("Cote nul (book 2, freebet)", min_value=1.01, step=0.01, format="%.2f", key="cote_nul")
+    cote_nul = st.number_input(f"Cote nul — {UNIBET_LOGO} Unibet (freebet)", min_value=1.01, step=0.01, format="%.2f", key="cote_nul")
 with col3:
-    cote_eq2 = st.number_input(f"Cote {nom_eq2} (book 2, freebet)", min_value=1.01, step=0.01, format="%.2f", key="cote_eq2")
+    cote_eq2 = st.number_input(f"Cote {nom_eq2} — {UNIBET_LOGO} Unibet (freebet)", min_value=1.01, step=0.01, format="%.2f", key="cote_eq2")
 
 st.subheader("2. Montant du freebet")
 montant_fb = st.number_input("Montant du freebet (€)", min_value=0.01, value=20.0, step=1.0, format="%.2f")
 
 result = compute_freebet_split(cote_eq1, cote_nul, cote_eq2, montant_fb)
 
-st.subheader(f"3. Résultat — {nom_eq1} vs {nom_eq2}")
+st.subheader(f"3. Résultat — {flag_prefix(nom_eq1)}{nom_eq1} vs {flag_prefix(nom_eq2)}{nom_eq2}")
 
 c1, c2, c3 = st.columns(3)
 c1.metric(f"Mise cash sur {nom_eq1}", f"{result['mise_eq1']:.2f} €")
@@ -170,7 +176,7 @@ if matches:
         fb_1_name = names[best["fb_outcomes"][0]]
         fb_2_name = names[best["fb_outcomes"][1]]
         rows.append({
-            "match": f"{m['home_team']} vs {m['away_team']}",
+            "match": f"{flag_prefix(m['home_team'])}{m['home_team']} vs {flag_prefix(m['away_team'])}{m['away_team']}",
             "commence_time": m["commence_time"],
             "taux": best["taux"],
             "cash_sur": names[best["cash_outcome"]],
@@ -209,9 +215,9 @@ if matches:
             taux_pct = r["taux"]
             icon = "✅" if taux_pct >= 0.70 else "⚠️"
             st.markdown(f"**{r['match']}** — {r['commence_time']} — {icon} **{taux_pct:.1%}**")
-            st.write(f"- Cash sur **{r['cash_sur']}** (cote {r['cote_cash']:.2f}) : {r['mise_cash']:.2f} €")
-            st.write(f"- Freebet sur **{r['fb_1']}** : {r['fb_1_montant']:.2f} €")
-            st.write(f"- Freebet sur **{r['fb_2']}** : {r['fb_2_montant']:.2f} €")
+            st.write(f"- Cash sur **{flag_prefix(r['cash_sur'])}{r['cash_sur']}** (cote {r['cote_cash']:.2f}) chez {WINAMAX_LOGO} Winamax : {r['mise_cash']:.2f} €")
+            st.write(f"- Freebet sur **{flag_prefix(r['fb_1_name'])}{r['fb_1']}** chez {UNIBET_LOGO} Unibet : {r['fb_1_montant']:.2f} €")
+            st.write(f"- Freebet sur **{flag_prefix(r['fb_2_name'])}{r['fb_2']}** chez {UNIBET_LOGO} Unibet : {r['fb_2_montant']:.2f} €")
             st.write(f"- Gain net garanti : {r['gain_net']:.2f} €")
             st.markdown("---")
 else:
