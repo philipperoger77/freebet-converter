@@ -22,6 +22,10 @@ Maths :
   Taux de conversion = Gain net / montant_FB
 """
 
+import json
+import os
+import time
+
 import streamlit as st
 
 from freebet_calc import compute_freebet_split, best_split_for_match
@@ -36,6 +40,22 @@ UNIBET_LOGO = unibet_logo()
 def team_badge(team_name: str) -> str:
     """Drapeau (équipe nationale) ou blason de club, selon ce qui est connu."""
     return flag_img(team_name) or club_logo(team_name)
+
+
+LAST_SCAN_FILE = os.path.join(os.path.dirname(__file__), "last_scan.json")
+
+
+def save_last_scan(sport_key: str, matches: list, quota: dict) -> None:
+    with open(LAST_SCAN_FILE, "w", encoding="utf-8") as f:
+        json.dump({"sport_key": sport_key, "matches": matches, "quota": quota, "timestamp": time.time()}, f)
+
+
+def load_last_scan() -> dict | None:
+    try:
+        with open(LAST_SCAN_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return None
 
 
 st.set_page_config(page_title="La Grappille des Super Sans Plomb 95", page_icon="⛽", layout="centered")
@@ -134,7 +154,20 @@ SPORTS = {
     "Football - Ligue des Champions": "soccer_uefa_champs_league",
     "Football - Coupe du Monde FIFA": "soccer_fifa_world_cup",
 }
-sport_label = st.selectbox("Compétition", list(SPORTS.keys()))
+# Au premier chargement de la session, on récupère le dernier scan sauvegardé
+# sur disque pour ne pas perdre les résultats quand on revient sur le site.
+if "matches" not in st.session_state:
+    last_scan = load_last_scan()
+    if last_scan:
+        st.session_state["matches"] = last_scan["matches"]
+        st.session_state["quota"] = last_scan["quota"]
+        st.session_state["_last_scan_sport"] = last_scan["sport_key"]
+        st.session_state["_last_scan_time"] = last_scan["timestamp"]
+
+sport_keys = list(SPORTS.values())
+default_sport_key = st.session_state.get("_last_scan_sport")
+default_index = sport_keys.index(default_sport_key) if default_sport_key in sport_keys else 0
+sport_label = st.selectbox("Compétition", list(SPORTS.keys()), index=default_index)
 sport_key = SPORTS[sport_label]
 
 
@@ -149,6 +182,9 @@ if st.button("Récupérer les cotes"):
     else:
         try:
             st.session_state["matches"], st.session_state["quota"] = cached_fetch_odds(odds_api_key, sport_key)
+            st.session_state["_last_scan_sport"] = sport_key
+            st.session_state["_last_scan_time"] = time.time()
+            save_last_scan(sport_key, st.session_state["matches"], st.session_state["quota"])
         except Exception as e:
             st.error(f"Erreur API : {e}")
             st.session_state["matches"] = []
@@ -159,6 +195,14 @@ quota = st.session_state.get("quota", {})
 
 if quota.get("remaining") is not None:
     st.caption(f"Quota the-odds-api.com : {quota['remaining']} requêtes restantes (résultats mis en cache 5 min).")
+
+last_scan_time = st.session_state.get("_last_scan_time")
+if last_scan_time is not None:
+    minutes_ago = int((time.time() - last_scan_time) / 60)
+    if minutes_ago < 1:
+        st.caption("Dernier scan : à l'instant")
+    else:
+        st.caption(f"Dernier scan : il y a {minutes_ago} min")
 
 BOOK1_NAME = "winamax"
 BOOK2_NAME = "unibet"
