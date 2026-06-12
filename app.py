@@ -27,9 +27,15 @@ import streamlit as st
 from freebet_calc import compute_freebet_split, best_split_for_match
 from odds_api import fetch_odds_raw
 from flags import flag_img
+from logos import winamax_logo, unibet_logo, club_logo
 
-WINAMAX_LOGO = "🟥⬛"
-UNIBET_LOGO = "🟢⚫"
+WINAMAX_LOGO = winamax_logo()
+UNIBET_LOGO = unibet_logo()
+
+
+def team_badge(team_name: str) -> str:
+    """Drapeau (équipe nationale) ou blason de club, selon ce qui est connu."""
+    return flag_img(team_name) or club_logo(team_name)
 
 
 st.set_page_config(page_title="La Grappille des Super Sans Plomb 95", page_icon="⛽", layout="centered")
@@ -63,20 +69,23 @@ st.session_state.setdefault("cote_eq2", 9.00)
 col_n1, col_n2 = st.columns(2)
 with col_n1:
     nom_eq1 = st.text_input("Nom équipe 1 (cash)", key="nom_eq1")
-    if flag_img(nom_eq1):
-        st.markdown(f"{flag_img(nom_eq1)} {nom_eq1}", unsafe_allow_html=True)
+    if team_badge(nom_eq1):
+        st.markdown(f"{team_badge(nom_eq1)} {nom_eq1}", unsafe_allow_html=True)
 with col_n2:
     nom_eq2 = st.text_input("Nom équipe 2 (freebet)", key="nom_eq2")
-    if flag_img(nom_eq2):
-        st.markdown(f"{flag_img(nom_eq2)} {nom_eq2}", unsafe_allow_html=True)
+    if team_badge(nom_eq2):
+        st.markdown(f"{team_badge(nom_eq2)} {nom_eq2}", unsafe_allow_html=True)
 
 col1, col2, col3 = st.columns(3)
 with col1:
-    cote_eq1 = st.number_input(f"Cote {nom_eq1} — {WINAMAX_LOGO} Winamax (cash)", min_value=1.01, step=0.01, format="%.2f", key="cote_eq1")
+    st.markdown(f"{WINAMAX_LOGO} Winamax (cash)", unsafe_allow_html=True)
+    cote_eq1 = st.number_input(f"Cote {nom_eq1}", min_value=1.01, step=0.01, format="%.2f", key="cote_eq1")
 with col2:
-    cote_nul = st.number_input(f"Cote nul — {UNIBET_LOGO} Unibet (freebet)", min_value=1.01, step=0.01, format="%.2f", key="cote_nul")
+    st.markdown(f"{UNIBET_LOGO} Unibet (freebet)", unsafe_allow_html=True)
+    cote_nul = st.number_input("Cote nul", min_value=1.01, step=0.01, format="%.2f", key="cote_nul")
 with col3:
-    cote_eq2 = st.number_input(f"Cote {nom_eq2} — {UNIBET_LOGO} Unibet (freebet)", min_value=1.01, step=0.01, format="%.2f", key="cote_eq2")
+    st.markdown(f"{UNIBET_LOGO} Unibet (freebet)", unsafe_allow_html=True)
+    cote_eq2 = st.number_input(f"Cote {nom_eq2}", min_value=1.01, step=0.01, format="%.2f", key="cote_eq2")
 
 st.subheader("2. Montant du freebet")
 montant_fb = st.number_input("Montant du freebet (€)", min_value=0.01, value=20.0, step=1.0, format="%.2f")
@@ -84,7 +93,7 @@ montant_fb = st.number_input("Montant du freebet (€)", min_value=0.01, value=2
 result = compute_freebet_split(cote_eq1, cote_nul, cote_eq2, montant_fb)
 
 st.markdown(
-    f"### 3. Résultat — {flag_img(nom_eq1)}{nom_eq1} vs {flag_img(nom_eq2)}{nom_eq2}",
+    f"### 3. Résultat — {team_badge(nom_eq1)}{nom_eq1} vs {team_badge(nom_eq2)}{nom_eq2}",
     unsafe_allow_html=True,
 )
 
@@ -181,7 +190,7 @@ if matches:
         fb_1_name = names[best["fb_outcomes"][0]]
         fb_2_name = names[best["fb_outcomes"][1]]
         rows.append({
-            "match": f"{flag_img(m['home_team'])}{m['home_team']} vs {flag_img(m['away_team'])}{m['away_team']}",
+            "match": f"{team_badge(m['home_team'])}{m['home_team']} vs {team_badge(m['away_team'])}{m['away_team']}",
             "commence_time": m["commence_time"],
             "taux": best["taux"],
             "cash_sur": names[best["cash_outcome"]],
@@ -220,9 +229,9 @@ if matches:
             taux_pct = r["taux"]
             icon = "✅" if taux_pct >= 0.70 else "⚠️"
             st.markdown(f"**{r['match']}** — {r['commence_time']} — {icon} **{taux_pct:.1%}**", unsafe_allow_html=True)
-            st.markdown(f"- Cash sur **{flag_img(r['cash_sur'])}{r['cash_sur']}** (cote {r['cote_cash']:.2f}) chez {WINAMAX_LOGO} Winamax : {r['mise_cash']:.2f} €", unsafe_allow_html=True)
-            st.markdown(f"- Freebet sur **{flag_img(r['fb_1_name'])}{r['fb_1']}** chez {UNIBET_LOGO} Unibet : {r['fb_1_montant']:.2f} €", unsafe_allow_html=True)
-            st.markdown(f"- Freebet sur **{flag_img(r['fb_2_name'])}{r['fb_2']}** chez {UNIBET_LOGO} Unibet : {r['fb_2_montant']:.2f} €", unsafe_allow_html=True)
+            st.markdown(f"- Cash sur **{team_badge(r['cash_sur'])}{r['cash_sur']}** (cote {r['cote_cash']:.2f}) chez {WINAMAX_LOGO} Winamax : {r['mise_cash']:.2f} €", unsafe_allow_html=True)
+            st.markdown(f"- Freebet sur **{team_badge(r['fb_1_name'])}{r['fb_1']}** chez {UNIBET_LOGO} Unibet : {r['fb_1_montant']:.2f} €", unsafe_allow_html=True)
+            st.markdown(f"- Freebet sur **{team_badge(r['fb_2_name'])}{r['fb_2']}** chez {UNIBET_LOGO} Unibet : {r['fb_2_montant']:.2f} €", unsafe_allow_html=True)
             st.write(f"- Gain net garanti : {r['gain_net']:.2f} €")
             st.markdown("---")
 else:
