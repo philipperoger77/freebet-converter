@@ -140,22 +140,29 @@ quota = st.session_state.get("quota", {})
 if quota.get("remaining") is not None:
     st.caption(f"Quota the-odds-api.com : {quota['remaining']} requêtes restantes (résultats mis en cache 5 min).")
 
-if matches:
-    all_books = sorted({book for m in matches for book in m["books"]})
-    book2 = st.selectbox("Bookmaker du freebet (book 2)", all_books)
+BOOK1_NAME = "winamax"
+BOOK2_NAME = "unibet"
 
+
+def find_book(books: dict, name_substr: str):
+    for title in books:
+        if name_substr in title.lower():
+            return title
+    return None
+
+
+if matches:
     rows = []
     for m in matches:
-        fb_odds = m["books"].get(book2)
-        if not fb_odds:
+        book1_title = find_book(m["books"], BOOK1_NAME)
+        book2_title = find_book(m["books"], BOOK2_NAME)
+        if not book1_title or not book2_title:
             continue
 
-        best_odds = {
-            outcome: max(book.get(outcome, 0) for book in m["books"].values())
-            for outcome in ("home", "draw", "away")
-        }
+        cash_odds = m["books"][book1_title]
+        fb_odds = m["books"][book2_title]
 
-        best = best_split_for_match(best_odds, fb_odds, montant_fb)
+        best = best_split_for_match(cash_odds, fb_odds, montant_fb)
         if best is None:
             continue
 
@@ -184,7 +191,7 @@ if matches:
 
     if rows:
         best_row = rows[0]
-        if st.session_state.get("_auto_filled") != (best_row["match"], book2):
+        if st.session_state.get("_auto_filled") != best_row["match"]:
             st.session_state["_pending_fill"] = {
                 "nom_eq1": best_row["cash_sur"],
                 "nom_eq2": best_row["fb_2_name"],
@@ -192,11 +199,11 @@ if matches:
                 "cote_nul": best_row["cote_fb1"],
                 "cote_eq2": best_row["cote_fb2"],
             }
-            st.session_state["_auto_filled"] = (best_row["match"], book2)
+            st.session_state["_auto_filled"] = best_row["match"]
             st.rerun()
 
     if not rows:
-        st.info(f"Aucune cote disponible chez {book2} pour ces matchs.")
+        st.info("Aucune cote disponible chez Winamax/Unibet pour ces matchs.")
     else:
         for r in rows:
             taux_pct = r["taux"]
