@@ -31,6 +31,16 @@ def team_badge(team_name: str) -> str:
     return flag_img(team_name) or club_logo(team_name)
 
 
+def book_logo(title: str) -> str:
+    """Logo du bookmaker si on le connaît (Winamax/Unibet), sinon ''."""
+    t = title.lower()
+    if "winamax" in t:
+        return WINAMAX_LOGO
+    if "unibet" in t:
+        return UNIBET_LOGO
+    return ""
+
+
 LAST_SCAN_FILE = os.path.join(os.path.dirname(__file__), "last_scan.json")
 
 
@@ -100,7 +110,7 @@ with col3:
 outcome_names = {"home": nom_eq1, "draw": "Nul", "away": nom_eq2}
 outcome_odds = {"home": cote_eq1, "draw": cote_nul, "away": cote_eq2}
 
-st.markdown(f"**Sur quelle issue placer la mise cash {WINAMAX_LOGO} Winamax ?** (les 2 autres partent en freebet {UNIBET_LOGO} Unibet)", unsafe_allow_html=True)
+st.markdown("**Sur quelle issue placer la mise cash ?** (les 2 autres partent en freebet)")
 cash_sur = st.radio(
     "Mise cash sur",
     options=["home", "draw", "away"],
@@ -221,27 +231,37 @@ if last_scan_time is not None:
     else:
         st.caption(f"Dernier scan : il y a {minutes_ago} min")
 
-BOOK1_NAME = "winamax"
-BOOK2_NAME = "unibet"
-
-
-def find_book(books: dict, name_substr: str):
-    for title in books:
-        if name_substr in title.lower():
-            return title
-    return None
+def default_book_idx(options: list, *preferred: str) -> int:
+    """Index du 1er book correspondant à une préférence (sous-chaîne), sinon 0."""
+    for pref in preferred:
+        for i, title in enumerate(options):
+            if pref in title.lower():
+                return i
+    return 0
 
 
 if matches:
+    available_books = sorted({t for m in matches for t in m["books"]})
+
+    # Réinitialise le choix si le book stocké n'existe plus pour ce sport.
+    if st.session_state.get("cash_book") not in available_books:
+        st.session_state["cash_book"] = available_books[default_book_idx(available_books, "winamax (fr)", "winamax")]
+    if st.session_state.get("fb_book") not in available_books:
+        st.session_state["fb_book"] = available_books[default_book_idx(available_books, "unibet (fr)", "unibet")]
+
+    colb1, colb2 = st.columns(2)
+    with colb1:
+        cash_book = st.selectbox("💶 Mise cash chez", available_books, key="cash_book")
+    with colb2:
+        fb_book = st.selectbox("🎁 Freebet chez", available_books, key="fb_book")
+
     rows = []
     for m in matches:
-        book1_title = find_book(m["books"], BOOK1_NAME)
-        book2_title = find_book(m["books"], BOOK2_NAME)
-        if not book1_title or not book2_title:
+        if cash_book not in m["books"] or fb_book not in m["books"]:
             continue
 
-        cash_odds = m["books"][book1_title]
-        fb_odds = m["books"][book2_title]
+        cash_odds = m["books"][cash_book]
+        fb_odds = m["books"][fb_book]
 
         best = best_split_for_match(cash_odds, fb_odds, montant_fb)
         if best is None:
@@ -298,15 +318,17 @@ if matches:
             st.rerun()
 
     if not rows:
-        st.info("Aucune cote disponible chez Winamax/Unibet pour ces matchs.")
+        st.info(f"Aucune cote disponible à la fois chez {cash_book} et {fb_book} pour ces matchs.")
     else:
+        cash_book_label = f"{book_logo(cash_book)} {cash_book}".strip()
+        fb_book_label = f"{book_logo(fb_book)} {fb_book}".strip()
         for r in rows:
             taux_pct = r["taux"]
             icon = "✅" if taux_pct >= 0.70 else "⚠️"
             st.markdown(f"**{r['match']}** — {r['commence_time']} — {icon} **{taux_pct:.1%}**", unsafe_allow_html=True)
-            st.markdown(f"- Cash sur **{team_badge(r['cash_sur'])}{r['cash_sur']}** (cote {r['cote_cash']:.2f}) chez {WINAMAX_LOGO} Winamax : {r['mise_cash']:.2f} €", unsafe_allow_html=True)
-            st.markdown(f"- Freebet sur **{team_badge(r['fb_1_name'])}{r['fb_1']}** chez {UNIBET_LOGO} Unibet : {r['fb_1_montant']:.2f} €", unsafe_allow_html=True)
-            st.markdown(f"- Freebet sur **{team_badge(r['fb_2_name'])}{r['fb_2']}** chez {UNIBET_LOGO} Unibet : {r['fb_2_montant']:.2f} €", unsafe_allow_html=True)
+            st.markdown(f"- Cash sur **{team_badge(r['cash_sur'])}{r['cash_sur']}** (cote {r['cote_cash']:.2f}) chez {cash_book_label} : {r['mise_cash']:.2f} €", unsafe_allow_html=True)
+            st.markdown(f"- Freebet sur **{team_badge(r['fb_1_name'])}{r['fb_1']}** chez {fb_book_label} : {r['fb_1_montant']:.2f} €", unsafe_allow_html=True)
+            st.markdown(f"- Freebet sur **{team_badge(r['fb_2_name'])}{r['fb_2']}** chez {fb_book_label} : {r['fb_2_montant']:.2f} €", unsafe_allow_html=True)
             st.write(f"- Gain net garanti : {r['gain_net']:.2f} €")
             st.markdown("---")
 else:
