@@ -79,38 +79,57 @@ if "_pending_fill" in st.session_state:
     st.session_state["cote_eq1"] = pending["cote_eq1"]
     st.session_state["cote_nul"] = pending["cote_nul"]
     st.session_state["cote_eq2"] = pending["cote_eq2"]
+    st.session_state["cash_sur"] = pending["cash_sur"]
 
 st.session_state.setdefault("nom_eq1", "Équipe 1")
 st.session_state.setdefault("nom_eq2", "Équipe 2")
 st.session_state.setdefault("cote_eq1", 1.41)
 st.session_state.setdefault("cote_nul", 4.70)
 st.session_state.setdefault("cote_eq2", 9.00)
+st.session_state.setdefault("cash_sur", "home")
 
 col_n1, col_n2 = st.columns(2)
 with col_n1:
-    nom_eq1 = st.text_input("Nom équipe 1 (cash)", key="nom_eq1")
+    nom_eq1 = st.text_input("Nom équipe 1 (domicile)", key="nom_eq1")
     if team_badge(nom_eq1):
         st.markdown(f"{team_badge(nom_eq1)} {nom_eq1}", unsafe_allow_html=True)
 with col_n2:
-    nom_eq2 = st.text_input("Nom équipe 2 (freebet)", key="nom_eq2")
+    nom_eq2 = st.text_input("Nom équipe 2 (extérieur)", key="nom_eq2")
     if team_badge(nom_eq2):
         st.markdown(f"{team_badge(nom_eq2)} {nom_eq2}", unsafe_allow_html=True)
 
 col1, col2, col3 = st.columns(3)
 with col1:
-    st.markdown(f"{WINAMAX_LOGO} Winamax (cash)", unsafe_allow_html=True)
     cote_eq1 = st.number_input(f"Cote {nom_eq1}", min_value=1.01, step=0.01, format="%.2f", key="cote_eq1")
 with col2:
-    st.markdown(f"{UNIBET_LOGO} Unibet (freebet)", unsafe_allow_html=True)
     cote_nul = st.number_input("Cote nul", min_value=1.01, step=0.01, format="%.2f", key="cote_nul")
 with col3:
-    st.markdown(f"{UNIBET_LOGO} Unibet (freebet)", unsafe_allow_html=True)
     cote_eq2 = st.number_input(f"Cote {nom_eq2}", min_value=1.01, step=0.01, format="%.2f", key="cote_eq2")
+
+# L'issue choisie ici reçoit la mise cash (Winamax) ; les deux autres reçoivent
+# le freebet (Unibet). Le scanner pré-sélectionne l'issue la plus rentable.
+outcome_names = {"home": nom_eq1, "draw": "Nul", "away": nom_eq2}
+outcome_odds = {"home": cote_eq1, "draw": cote_nul, "away": cote_eq2}
+
+st.markdown(f"{WINAMAX_LOGO} **Mise cash (Winamax)** sur — le reste en freebet {UNIBET_LOGO} **Unibet**", unsafe_allow_html=True)
+cash_sur = st.radio(
+    "Mise cash sur",
+    options=["home", "draw", "away"],
+    format_func=lambda k: outcome_names[k],
+    horizontal=True,
+    label_visibility="collapsed",
+    key="cash_sur",
+)
+
+fb_keys = [k for k in ("home", "draw", "away") if k != cash_sur]
+cote_cash = outcome_odds[cash_sur]
+cote_fb1 = outcome_odds[fb_keys[0]]
+cote_fb2 = outcome_odds[fb_keys[1]]
 
 st.subheader("2. Montant du freebet")
 montant_fb = st.number_input("Montant du freebet (€)", min_value=0.01, value=20.0, step=1.0, format="%.2f")
 
-result = compute_freebet_split(cote_eq1, cote_nul, cote_eq2, montant_fb)
+result = compute_freebet_split(cote_cash, cote_fb1, cote_fb2, montant_fb)
 
 st.markdown(
     f"### 3. Résultat — {team_badge(nom_eq1)}{nom_eq1} vs {team_badge(nom_eq2)}{nom_eq2}",
@@ -118,9 +137,9 @@ st.markdown(
 )
 
 c1, c2, c3 = st.columns(3)
-c1.metric(f"Mise cash sur {nom_eq1}", f"{result['mise_eq1']:.2f} €")
-c2.metric("Freebet sur nul", f"{result['fb_nul']:.2f} €")
-c3.metric(f"Freebet sur {nom_eq2}", f"{result['fb_eq2']:.2f} €")
+c1.metric(f"Mise cash sur {outcome_names[cash_sur]}", f"{result['mise_eq1']:.2f} €")
+c2.metric(f"Freebet sur {outcome_names[fb_keys[0]]}", f"{result['fb_nul']:.2f} €")
+c3.metric(f"Freebet sur {outcome_names[fb_keys[1]]}", f"{result['fb_eq2']:.2f} €")
 
 st.metric("Retour garanti (toutes issues)", f"{result['retour']:.2f} €")
 st.metric("Gain net", f"{result['gain_net']:.2f} €")
@@ -132,9 +151,9 @@ else:
     st.warning(f"⚠️ Taux de conversion : {taux:.1%} (sous le seuil de 70%)")
 
 with st.expander("Vérification"):
-    st.write(f"{nom_eq1} gagne → {result['mise_eq1']:.2f} × {cote_eq1:.2f} = {result['mise_eq1'] * cote_eq1:.2f} €")
-    st.write(f"Nul → {result['fb_nul']:.2f} × {cote_nul:.2f} = {result['fb_nul'] * cote_nul:.2f} €")
-    st.write(f"{nom_eq2} gagne → {result['fb_eq2']:.2f} × {cote_eq2:.2f} = {result['fb_eq2'] * cote_eq2:.2f} €")
+    st.write(f"{outcome_names[cash_sur]} gagne (cash) → {result['mise_eq1']:.2f} × {cote_cash:.2f} = {result['mise_eq1'] * cote_cash:.2f} €")
+    st.write(f"{outcome_names[fb_keys[0]]} gagne (freebet) → {result['fb_nul']:.2f} × {cote_fb1:.2f} = {result['fb_nul'] * cote_fb1:.2f} €")
+    st.write(f"{outcome_names[fb_keys[1]]} gagne (freebet) → {result['fb_eq2']:.2f} × {cote_fb2:.2f} = {result['fb_eq2'] * cote_fb2:.2f} €")
 
 st.divider()
 st.subheader("4. Scanner de cotes (live)")
@@ -233,8 +252,21 @@ if matches:
         names = {"home": m["home_team"], "draw": "Nul", "away": m["away_team"]}
         fb_1_name = names[best["fb_outcomes"][0]]
         fb_2_name = names[best["fb_outcomes"][1]]
+        # Cote à placer dans chaque case du formulaire (issue cash = Winamax,
+        # issues freebet = Unibet).
+        odds_by_pos = {
+            best["cash_outcome"]: best["cote_cash"],
+            best["fb_outcomes"][0]: best["cote_fb1"],
+            best["fb_outcomes"][1]: best["cote_fb2"],
+        }
         rows.append({
             "match": f"{team_badge(m['home_team'])}{m['home_team']} vs {team_badge(m['away_team'])}{m['away_team']}",
+            "home_team": m["home_team"],
+            "away_team": m["away_team"],
+            "cash_outcome": best["cash_outcome"],
+            "cote_home": odds_by_pos["home"],
+            "cote_draw": odds_by_pos["draw"],
+            "cote_away": odds_by_pos["away"],
             "commence_time": m["commence_time"],
             "taux": best["taux"],
             "cash_sur": names[best["cash_outcome"]],
@@ -257,11 +289,12 @@ if matches:
         best_row = rows[0]
         if st.session_state.get("_auto_filled") != best_row["match"]:
             st.session_state["_pending_fill"] = {
-                "nom_eq1": best_row["cash_sur"],
-                "nom_eq2": best_row["fb_2_name"],
-                "cote_eq1": best_row["cote_cash"],
-                "cote_nul": best_row["cote_fb1"],
-                "cote_eq2": best_row["cote_fb2"],
+                "nom_eq1": best_row["home_team"],
+                "nom_eq2": best_row["away_team"],
+                "cote_eq1": best_row["cote_home"],
+                "cote_nul": best_row["cote_draw"],
+                "cote_eq2": best_row["cote_away"],
+                "cash_sur": best_row["cash_outcome"],
             }
             st.session_state["_auto_filled"] = best_row["match"]
             st.rerun()
