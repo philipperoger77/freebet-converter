@@ -100,7 +100,7 @@ with col3:
 outcome_names = {"home": nom_eq1, "draw": "Nul", "away": nom_eq2}
 outcome_odds = {"home": cote_eq1, "draw": cote_nul, "away": cote_eq2}
 
-st.markdown(f"{WINAMAX_LOGO} **Mise cash (Winamax)** sur — le reste en freebet {UNIBET_LOGO} **Unibet**", unsafe_allow_html=True)
+st.markdown(f"**Sur quelle issue placer la mise cash {WINAMAX_LOGO} Winamax ?** (les 2 autres partent en freebet {UNIBET_LOGO} Unibet)", unsafe_allow_html=True)
 cash_sur = st.radio(
     "Mise cash sur",
     options=["home", "draw", "away"],
