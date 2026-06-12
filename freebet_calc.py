@@ -1,20 +1,48 @@
-"""Logique de calcul de répartition d'un freebet pour un gain garanti."""
+"""Logique de calcul de répartition d'un freebet pour un gain garanti.
+
+Hypothèse importante : un freebet est un pari gratuit dont la MISE N'EST PAS
+RENDUE. Une mise freebet de s à cote c rapporte donc s·(c−1) (le bénéfice seul),
+alors qu'une mise CASH de a à cote c rapporte a·c (mise rendue + bénéfice).
+
+On mise du cash réel sur l'issue 1 (cote_eq1) et on répartit le freebet sur les
+deux autres issues (cote_nul, cote_eq2). On veut un BÉNÉFICE NET G identique
+quelle que soit l'issue.
+
+  Issue cash gagne   : a·c_a − a            = a·(c_a − 1)        = G
+  Issue freebet B    : s_b·(c_b − 1) − a                        = G
+  Issue freebet C    : s_c·(c_c − 1) − a                        = G
+  avec s_b + s_c = montant_fb (le freebet ne coûte rien de réel)
+
+  => a    = G / (c_a − 1)
+     s_b  = (G + a) / (c_b − 1)
+     s_c  = (G + a) / (c_c − 1)
+     (G + a) = G·c_a / (c_a − 1)
+
+  s_b + s_c = montant_fb donne :
+     G = montant_fb / [ c_a/(c_a−1) · (1/(c_b−1) + 1/(c_c−1)) ]
+
+  Taux de conversion = G / montant_fb
+"""
 
 
 def compute_freebet_split(cote_eq1: float, cote_nul: float, cote_eq2: float, montant_fb: float) -> dict:
-    """Calcule la répartition optimale d'un freebet entre 'nul' et 'eq2',
-    et la mise cash sur 'eq1', pour obtenir un retour identique sur les 3 issues.
+    """Calcule la mise cash sur 'eq1' et la répartition du freebet entre 'nul'
+    et 'eq2' pour un bénéfice net identique sur les 3 issues.
+
+    cote_eq1        : cote de l'issue misée en CASH (mise rendue).
+    cote_nul/cote_eq2 : cotes des 2 issues misées en FREEBET (mise non rendue).
 
     Retourne un dict avec : retour, mise_eq1, fb_nul, fb_eq2, gain_net, taux.
     """
-    inv_sum = 1 / cote_nul + 1 / cote_eq2
-    retour = montant_fb / inv_sum
+    inv_fb = 1 / (cote_nul - 1) + 1 / (cote_eq2 - 1)
+    gain_net = montant_fb / ((cote_eq1 / (cote_eq1 - 1)) * inv_fb)
 
-    fb_nul = retour / cote_nul
-    fb_eq2 = retour / cote_eq2
-    mise_eq1 = retour / cote_eq1
+    mise_eq1 = gain_net / (cote_eq1 - 1)
+    fb_nul = (gain_net + mise_eq1) / (cote_nul - 1)
+    fb_eq2 = (gain_net + mise_eq1) / (cote_eq2 - 1)
 
-    gain_net = retour - mise_eq1
+    # Retour brut si l'issue cash gagne (mise rendue + bénéfice).
+    retour = mise_eq1 * cote_eq1
     taux = gain_net / montant_fb
 
     return {

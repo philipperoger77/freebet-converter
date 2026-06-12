@@ -2,24 +2,13 @@
 Freebet Converter - Outil de conversion de freebets en gain garanti.
 
 Logique :
-- Tu as un freebet (FB) sur le bookmaker B (book 2), valeur = montant du FB.
-- Tu places de l'argent réel (cash) sur l'issue 1 chez un autre bookmaker (book 1).
-- Tu répartis le FB entre les issues "nul" et "issue 2" chez book 2.
-- Objectif : que le retour soit identique quelle que soit l'issue (nul, eq1, eq2).
+- Tu as un freebet (FB) sur Unibet, valeur = montant du FB (mise NON rendue).
+- Tu places de l'argent réel (cash) sur une issue chez Winamax (mise rendue).
+- Tu répartis le FB entre les deux autres issues chez Unibet.
+- Objectif : que le BÉNÉFICE NET soit identique quelle que soit l'issue.
 
-Maths :
-  R = M_eq1 * cote_eq1 = FB_nul * cote_nul = FB_eq2 * cote_eq2
-  FB_nul + FB_eq2 = montant_FB
-
-  => R * (1/cote_nul + 1/cote_eq2) = montant_FB
-  => R = montant_FB / (1/cote_nul + 1/cote_eq2)
-
-  FB_nul = R / cote_nul
-  FB_eq2 = R / cote_eq2
-  M_eq1  = R / cote_eq1
-
-  Gain net = R - M_eq1
-  Taux de conversion = Gain net / montant_FB
+La formule (qui tient compte du fait que la mise freebet n'est pas rendue) est
+détaillée dans freebet_calc.py.
 """
 
 import json
@@ -141,8 +130,7 @@ c1.metric(f"Mise cash sur {outcome_names[cash_sur]}", f"{result['mise_eq1']:.2f}
 c2.metric(f"Freebet sur {outcome_names[fb_keys[0]]}", f"{result['fb_nul']:.2f} €")
 c3.metric(f"Freebet sur {outcome_names[fb_keys[1]]}", f"{result['fb_eq2']:.2f} €")
 
-st.metric("Retour garanti (toutes issues)", f"{result['retour']:.2f} €")
-st.metric("Gain net", f"{result['gain_net']:.2f} €")
+st.metric("Gain net garanti (toutes issues)", f"{result['gain_net']:.2f} €")
 
 taux = result['taux']
 if taux >= 0.70:
@@ -150,10 +138,20 @@ if taux >= 0.70:
 else:
     st.warning(f"⚠️ Taux de conversion : {taux:.1%} (sous le seuil de 70%)")
 
-with st.expander("Vérification"):
-    st.write(f"{outcome_names[cash_sur]} gagne (cash) → {result['mise_eq1']:.2f} × {cote_cash:.2f} = {result['mise_eq1'] * cote_cash:.2f} €")
-    st.write(f"{outcome_names[fb_keys[0]]} gagne (freebet) → {result['fb_nul']:.2f} × {cote_fb1:.2f} = {result['fb_nul'] * cote_fb1:.2f} €")
-    st.write(f"{outcome_names[fb_keys[1]]} gagne (freebet) → {result['fb_eq2']:.2f} × {cote_fb2:.2f} = {result['fb_eq2'] * cote_fb2:.2f} €")
+mise = result["mise_eq1"]
+with st.expander("Vérification (bénéfice net par issue)"):
+    st.write(
+        f"{outcome_names[cash_sur]} gagne (cash) → {mise:.2f} × {cote_cash:.2f} − {mise:.2f} (mise) "
+        f"= {mise * cote_cash - mise:.2f} €"
+    )
+    st.write(
+        f"{outcome_names[fb_keys[0]]} gagne (freebet) → {result['fb_nul']:.2f} × ({cote_fb1:.2f}−1) − {mise:.2f} (cash perdu) "
+        f"= {result['fb_nul'] * (cote_fb1 - 1) - mise:.2f} €"
+    )
+    st.write(
+        f"{outcome_names[fb_keys[1]]} gagne (freebet) → {result['fb_eq2']:.2f} × ({cote_fb2:.2f}−1) − {mise:.2f} (cash perdu) "
+        f"= {result['fb_eq2'] * (cote_fb2 - 1) - mise:.2f} €"
+    )
 
 st.divider()
 st.subheader("4. Scanner de cotes (live)")
